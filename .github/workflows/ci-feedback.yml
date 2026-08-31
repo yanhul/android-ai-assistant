@@ -1,0 +1,30 @@
+name: CI Feedback
+
+on:
+  workflow_run:
+    workflows: ["Android CI"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  feedback:
+    if: ${{ github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'pull_request' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize CI result
+        env:
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          echo "CI conclusion: ${CONCLUSION}"
+          echo "Commit: ${SHA}"
+          echo "Run: ${RUN_ID}"
+          if [ "${CONCLUSION}" != "success" ]; then
+            echo "CI failed. An autonomous coding agent may inspect this run and repair its branch within its iteration budget."
+            exit 1
+          fi
+          echo "CI passed."
