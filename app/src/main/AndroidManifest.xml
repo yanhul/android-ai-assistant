@@ -17,6 +17,10 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".settings.AssistantSettingsActivity"
+            android:exported="false" />
+
         <service
             android:name=".assistant.AIAssistantService"
             android:exported="true"
@@ -29,5 +33,10 @@
                 <action android:name="android.service.voice.VoiceInteractionService" />
             </intent-filter>
         </service>
+
+        <service
+            android:name=".assistant.AIAssistantSessionService"
+            android:exported="false"
+            android:permission="android.permission.BIND_VOICE_INTERACTION" />
     </application>
 </manifest>
