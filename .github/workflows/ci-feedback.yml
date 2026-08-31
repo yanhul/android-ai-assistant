@@ -24,7 +24,9 @@ jobs:
           echo "Commit: ${SHA}"
           echo "Run: ${RUN_ID}"
           if [ "${CONCLUSION}" != "success" ]; then
-            echo "CI failed. An autonomous coding agent may inspect this run and repair its branch within its iteration budget."
+            echo "CI_FAILED=true" >> "$GITHUB_STEP_SUMMARY"
+            echo "CI failed. Inspect the originating Android CI run; autonomous repair must occur on an agent branch within the policy budget." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          echo "CI passed."
+          echo "CI_PASS=true" >> "$GITHUB_STEP_SUMMARY"
+          echo "CI passed." >> "$GITHUB_STEP_SUMMARY"
