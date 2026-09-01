@@ -23,9 +23,10 @@ class AIAssistantSession(context: android.content.Context) : VoiceInteractionSes
     }
 
     private fun handleSpeech(text: String) {
-        val result = router.handle(context, text)
-        voiceIO.speak(result.message)
-        if (result.closeSession) hide()
+        router.handle(context, text) { result ->
+            voiceIO.speak(result.message)
+            if (result.closeSession) hide()
+        }
     }
 
     override fun onHide() {
