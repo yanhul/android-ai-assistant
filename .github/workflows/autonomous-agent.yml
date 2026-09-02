@@ -4,65 +4,154 @@ on:
   workflow_dispatch:
     inputs:
       task:
-        description: 'Roadmap task ID to start from (for example T005)'
+        description: 'Optional roadmap task ID to start from (for example T005)'
         required: false
         default: ''
       max_iterations:
         description: 'Maximum repair iterations'
         required: false
         default: '3'
-  push:
-    branches: [main]
   schedule:
     - cron: '*/15 * * * *'
 
 permissions:
   contents: write
+  pull-requests: write
   actions: read
+  id-token: write
 
 concurrency:
   group: android-assistant-autonomous
   cancel-in-progress: false
 
+env:
+  AGENT_BRANCH: agent/autonomous
+
 jobs:
   control-loop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Validate immutable policy
+      - name: Validate immutable control plane
         run: |
           test -f ROADMAP.md
           test -f AGENT_POLICY.md
           test -f harness/HARNESS.md
+          test -f harness/controller.py
           grep -q 'Default maximum autonomous repair iterations per task: 3' AGENT_POLICY.md
+          grep -q 'The agent may not modify this policy' AGENT_POLICY.md
 
-      - name: Observe and resume durable controller
-        env:
-          REQUESTED_TASK: ${{ inputs.task }}
+      - name: Prepare durable agent branch
         run: |
-          if [ -n "${REQUESTED_TASK}" ]; then
-            echo "Requested task: ${REQUESTED_TASK}"
+          git fetch origin main
+          if git ls-remote --exit-code --heads origin "${AGENT_BRANCH}" >/dev/null 2>&1; then
+            git fetch origin "${AGENT_BRANCH}:${AGENT_BRANCH}"
+            git checkout "${AGENT_BRANCH}"
+          else
+            git checkout -b "${AGENT_BRANCH}" origin/main
           fi
-          python harness/controller.py
 
-      # The agent runtime remains an explicit activation boundary. This job
-      # never fabricates a provider call or silently grants unattended edits.
-      - name: Verify activation boundary
+      - name: Observe and decide
+        id: controller
         run: |
-          echo "Durable control checkpoint created."
-          echo "Approved coding-agent runtime is required for ACT."
+          python harness/controller.py | tee controller.out
+          if grep -q '^ACT:' controller.out; then
+            task="$(sed -n 's/^ACT://p' controller.out | tail -1)"
+            iteration="$(sed -n 's/^ITERATION://p' controller.out | tail -1)"
+            echo "task=${task}" >> "$GITHUB_OUTPUT"
+            echo "iteration=${iteration}" >> "$GITHUB_OUTPUT"
+          else
+            echo "No ACT state; controller result:"
+            cat controller.out
+          fi
 
-      - name: Persist controller checkpoint
+      - name: Persist pre-action checkpoint
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add harness/state.json
-          if git diff --cached --quiet; then
-            echo "No controller state change."
+          if ! git diff --cached --quiet; then
+            git commit -m "harness: checkpoint autonomous ACT [skip ci]"
+          fi
+          git push --set-upstream origin "${AGENT_BRANCH}"
+
+      - name: Execute bounded agent pass
+        if: steps.controller.outputs.task != ''
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the bounded ACT executor in the repository's durable harness.
+
+            Task: ${{ steps.controller.outputs.task }}
+            Iteration: ${{ steps.controller.outputs.iteration }}
+
+            Follow AGENT_POLICY.md and harness/HARNESS.md exactly.
+            Read ROADMAP.md, the current implementation, tests, and harness/state.json.
+            Observe the latest CI result for this branch before deciding what to change.
+            Implement ONLY the selected roadmap task or an evidence-supported repair of it.
+            Run the strongest available Gradle/unit checks before declaring success.
+            If CI previously failed, inspect the actual failure and fix only the proven cause.
+            Persist useful evidence in the normal project artifacts.
+            Do not invent API behavior, Android behavior, versions, test results, or performance data.
+            Do not modify AGENT_POLICY.md, harness/HARNESS.md, harness/controller.py, this workflow,
+            or acceptance/terminal criteria. Do not weaken tests or permissions.
+            Do not perform destructive Android actions.
+            If the task cannot be safely completed within this iteration, leave the repository in a
+            reviewable state and report the blocker; do not fabricate PASS.
+            Commit the implementation and tests/docs required for the task to this agent branch.
+          claude_args: |
+            --max-turns 12
+            --allowedTools "Read,Edit,Write,Bash(git:*),Bash(./gradlew:*),Bash(gh run:*),Bash(gh pr:*)"
+            --append-system-prompt "The durable harness is authoritative. You are an executor, not the policy owner. Never edit policy, gates, or terminal conditions."
+
+      - name: Verify protected control plane was not changed
+        run: |
+          git diff --name-only origin/main...HEAD > changed.txt || true
+          for protected in AGENT_POLICY.md harness/HARNESS.md harness/controller.py .github/workflows/autonomous-agent.yml; do
+            if grep -qx "$protected" changed.txt; then
+              echo "Protected control-plane file changed: $protected"
+              exit 1
+            fi
+          done
+
+      - name: Push agent changes
+        run: |
+          git push origin "${AGENT_BRANCH}"
+
+      - name: Create or update PR
+        id: pr
+        run: |
+          if gh pr view "${AGENT_BRANCH}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            number="$(gh pr view "${AGENT_BRANCH}" --repo "${GITHUB_REPOSITORY}" --json number --jq .number)"
+            echo "number=${number}" >> "$GITHUB_OUTPUT"
+          elif [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ]; then
+            number="$(gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head "${AGENT_BRANCH}" --title "autonomous: continue roadmap loop" --body "Durable autonomous harness iteration. Governed by AGENT_POLICY.md and required CI checks.")"
+            number="${number##*/}"
+            echo "number=${number}" >> "$GITHUB_OUTPUT"
           else
-            git commit -m "harness: persist assistant controller checkpoint [skip ci]"
-            git push
+            echo "number=" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable bounded auto-merge
+        if: steps.pr.outputs.number != ''
+        run: |
+          gh pr merge "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" --squash --auto
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Persist final checkpoint
+        run: |
+          git add harness/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "harness: persist autonomous iteration [skip ci]"
+            git push origin "${AGENT_BRANCH}"
           fi
 
       - name: Publish checkpoint
