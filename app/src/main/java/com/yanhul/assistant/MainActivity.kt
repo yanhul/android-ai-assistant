@@ -21,32 +21,33 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        voice = VoiceIO(this)
         status = TextView(this).apply {
             text = "AI Assistant\n\nTap Listen and speak."
             textSize = 20f
             setPadding(32, 48, 32, 24)
         }
-        val listen = Button(this).apply { text = "Listen" }
-        val settings = Button(this).apply { text = "Settings" }
-        listen.setOnClickListener {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
-                return@setOnClickListener
+        voice = VoiceIO(
+            context = this,
+            onText = ::handleSpeech,
+            onError = { message -> status.text = "Voice error: $message" },
+        )
+
+        val listen = Button(this).apply {
+            text = "Listen"
+            setOnClickListener {
+                if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    ActivityCompat.requestPermissions(this@MainActivity, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+                    return@setOnClickListener
+                }
+                status.text = "Listening…"
+                voice.startListening()
             }
-            status.text = "Listening…"
-            voice.listen(
-                onText = { text ->
-                    status.text = "You: $text\n\nThinking…"
-                    router.handle(this, text) { result ->
-                        status.text = "You: $text\n\nAssistant: ${result.message}"
-                        if (result.closeSession) voice.stop()
-                    }
-                },
-                onError = { message -> status.text = "Voice error: $message" },
-            )
         }
-        settings.setOnClickListener { startActivity(Intent(this, AssistantSettingsActivity::class.java)) }
+        val settings = Button(this).apply {
+            text = "Settings"
+            setOnClickListener { startActivity(Intent(this@MainActivity, AssistantSettingsActivity::class.java)) }
+        }
+
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(24, 24, 24, 24)
@@ -56,8 +57,24 @@ class MainActivity : ComponentActivity() {
         })
     }
 
+    private fun handleSpeech(text: String) {
+        status.text = "You: $text\n\nThinking…"
+        router.handle(this, text) { result ->
+            status.text = "You: $text\n\nAssistant: ${result.message}"
+            voice.speak(result.message)
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 100 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            status.text = "Listening…"
+            voice.startListening()
+        }
+    }
+
     override fun onDestroy() {
-        voice.stop()
+        voice.release()
         super.onDestroy()
     }
 }
