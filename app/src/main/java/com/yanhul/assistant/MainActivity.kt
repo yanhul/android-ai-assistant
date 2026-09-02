@@ -8,7 +8,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
-import androidx.core.app.ActivityCompat
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.yanhul.assistant.assistant.CommandRouter
 import com.yanhul.assistant.assistant.VoiceIO
@@ -18,6 +18,17 @@ class MainActivity : ComponentActivity() {
     private val router = CommandRouter()
     private lateinit var voice: VoiceIO
     private lateinit var status: TextView
+
+    private val microphonePermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            status.text = "Listening…"
+            voice.startListening()
+        } else {
+            status.text = "Voice error: Microphone permission is required."
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,7 +47,7 @@ class MainActivity : ComponentActivity() {
             text = "Listen"
             setOnClickListener {
                 if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(this@MainActivity, arrayOf(Manifest.permission.RECORD_AUDIO), 100)
+                    microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
                     return@setOnClickListener
                 }
                 status.text = "Listening…"
@@ -62,14 +73,6 @@ class MainActivity : ComponentActivity() {
         router.handle(this, text) { result ->
             status.text = "You: $text\n\nAssistant: ${result.message}"
             voice.speak(result.message)
-        }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 100 && grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
-            status.text = "Listening…"
-            voice.startListening()
         }
     }
 
