@@ -19,5 +19,5 @@ class ProviderRegistry(private val context: Context) {
         ),
     )
 
-    fun firstConfigured(): LLMProvider? = providers().firstOrNull { it.isConfigured() }
+    fun firstConfigured(): LLMProvider? = ProviderSelector.firstConfigured(providers())
 }
