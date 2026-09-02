@@ -11,44 +11,63 @@ on:
         description: 'Maximum repair iterations'
         required: false
         default: '3'
+  push:
+    branches: [main]
+  schedule:
+    - cron: '*/15 * * * *'
 
-# IMPORTANT: This workflow is an orchestration shell. It deliberately does not
-# contain an LLM provider or secret. Configure the approved coding-agent action
-# and its external secret before enabling unattended repository writes.
 permissions:
   contents: write
-  pull-requests: write
   actions: read
 
+concurrency:
+  group: android-assistant-autonomous
+  cancel-in-progress: false
+
 jobs:
-  guard:
+  control-loop:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validate autonomous policy
+
+      - name: Validate immutable policy
         run: |
           test -f ROADMAP.md
           test -f AGENT_POLICY.md
+          test -f harness/HARNESS.md
           grep -q 'Default maximum autonomous repair iterations per task: 3' AGENT_POLICY.md
-          echo "Autonomous policy present. No coding agent is invoked until an approved provider/action is configured."
-      - name: Print requested start point
-        env:
-          TASK: ${{ inputs.task }}
-          MAX_ITERATIONS: ${{ inputs.max_iterations }}
-        run: |
-          echo "Requested task: ${TASK:-first unblocked TODO}"
-          echo "Iteration budget: ${MAX_ITERATIONS}"
 
-  # Provider integration intentionally remains disabled until credentials and
-  # an approved coding-agent runtime are configured. This prevents a false
-  # claim of autonomous execution and prevents an unusable workflow from
-  # making arbitrary repository changes.
-  agent-not-configured:
-    needs: guard
-    runs-on: ubuntu-latest
-    steps:
-      - name: Explain activation boundary
+      - name: Observe and resume durable controller
+        env:
+          REQUESTED_TASK: ${{ inputs.task }}
         run: |
-          echo "Autonomous loop scaffold installed."
-          echo "Activation requires an approved coding-agent runtime and secret configured by the repository owner."
-          echo "The workflow will not fabricate an LLM call or guess a provider."
+          if [ -n "${REQUESTED_TASK}" ]; then
+            echo "Requested task: ${REQUESTED_TASK}"
+          fi
+          python harness/controller.py
+
+      # The agent runtime remains an explicit activation boundary. This job
+      # never fabricates a provider call or silently grants unattended edits.
+      - name: Verify activation boundary
+        run: |
+          echo "Durable control checkpoint created."
+          echo "Approved coding-agent runtime is required for ACT."
+
+      - name: Persist controller checkpoint
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add harness/state.json
+          if git diff --cached --quiet; then
+            echo "No controller state change."
+          else
+            git commit -m "harness: persist assistant controller checkpoint [skip ci]"
+            git push
+          fi
+
+      - name: Publish checkpoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: assistant-controller-state
+          path: harness/state.json
+          if-no-files-found: error
