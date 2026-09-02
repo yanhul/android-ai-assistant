@@ -5,7 +5,7 @@ package com.yanhul.assistant.assistant
  * stable inspection, while IDs are unique and required to be non-blank.
  */
 class ToolRegistry {
-    private val tools = linkedMapOf<String, RegisteredTool>()
+    private val tools = linkedMapOf<String, RegisteredTool<*, *>>()
 
     fun <I : ToolInput, O : ToolOutput> register(tool: TypedTool<I, O>) {
         val id = tool.definition.id.trim()
