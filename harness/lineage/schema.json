@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0",
+  "domain": "software_agent",
+  "required": ["iteration", "task", "parent_artifacts", "change", "commit", "tests", "ci", "verdict", "findings", "constraints", "claims"],
+  "invariants": {
+    "policy_immutable": true,
+    "acceptance_criteria_immutable": true,
+    "security_controls_immutable": true,
+    "budget_immutable": true,
+    "terminal_conditions_immutable": true
+  }
+}
