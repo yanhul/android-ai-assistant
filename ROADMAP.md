@@ -18,7 +18,7 @@ Status is evidence-driven. A task is DONE only when its stated acceptance criter
 | T002 | VoiceInteractionService baseline | DONE | Android project builds |
 | T003 | STT/TTS voice loop | DONE | Code present; runtime device test still required |
 | T004 | Explicit Android action boundary | DONE | AndroidActions + router committed; CI passed |
-| T005 | AI provider abstraction | TODO | Unit tests + CI pass; no secret in repo |
+| T005 | AI provider abstraction | DONE | Provider abstraction + JVM provider-selection tests + Android CI success; no repository secrets |
 | T006 | Tool registry and typed tool contracts | TODO | Unit tests + CI pass |
 | T007 | Confirmation/safety policy | TODO | Policy tests cover destructive/ambiguous actions |
 | T008 | Persistent local state | TODO | Instrumented/unit tests + CI pass |
