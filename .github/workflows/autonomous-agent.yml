@@ -46,6 +46,9 @@ jobs:
           grep -q 'The agent may not modify this policy' AGENT_POLICY.md
           python harness/aios_conformance.py
 
+      - name: Runtime adversarial conformance
+        run: python harness/adversarial_conformance.py
+
       - name: Prepare durable agent branch
         run: |
           git fetch origin main
