@@ -125,19 +125,50 @@ jobs:
 
       - name: Create or update PR
         id: pr
+        continue-on-error: true
         run: |
+          set -o pipefail
           if gh pr view "${AGENT_BRANCH}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             number="$(gh pr view "${AGENT_BRANCH}" --repo "${GITHUB_REPOSITORY}" --json number --jq .number)"
             echo "number=${number}" >> "$GITHUB_OUTPUT"
+            echo "PR_STATUS=EXISTING:${number}" >> "$GITHUB_ENV"
           elif [ "$(git rev-list --count origin/main..HEAD)" -gt 0 ]; then
-            number="$(gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head "${AGENT_BRANCH}" --title "autonomous: continue roadmap loop" --body "Durable autonomous harness iteration. Governed by AGENT_POLICY.md and required CI checks.")"
-            number="${number##*/}"
-            echo "number=${number}" >> "$GITHUB_OUTPUT"
+            if output="$(gh pr create --repo "${GITHUB_REPOSITORY}" --base main --head "${AGENT_BRANCH}" --title "autonomous: continue roadmap loop" --body "Durable autonomous harness iteration. Governed by AGENT_POLICY.md and required CI checks." 2>&1)"; then
+              number="${output##*/}"
+              echo "number=${number}" >> "$GITHUB_OUTPUT"
+              echo "PR_STATUS=CREATED:${number}" >> "$GITHUB_ENV"
+            else
+              echo "PR_STATUS=BLOCKED:CREATE_PULL_REQUEST_PERMISSION" >> "$GITHUB_ENV"
+              echo "PR creation blocked by repository Actions permission; branch remains durable and reviewable."
+              exit 0
+            fi
           else
             echo "number=" >> "$GITHUB_OUTPUT"
+            echo "PR_STATUS=NO_CHANGES" >> "$GITHUB_ENV"
           fi
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Persist final checkpoint
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('harness/state.json')
+          s=json.loads(p.read_text())
+          s['pr_status']=__import__('os').environ.get('PR_STATUS','UNSET')
+          if s['pr_status'].startswith('BLOCKED:'):
+              s['phase']='HOLD'
+              s['result']='HOLD: PR_PERMISSION'
+              s['last_error']='GitHub Actions token is not permitted to create pull requests'
+          p.write_text(json.dumps(s,indent=2,sort_keys=True)+'\n')
+          PY
+          git add harness/state.json
+          if ! git diff --cached --quiet; then
+            git commit -m "harness: persist autonomous PR boundary [skip ci]"
+            git push origin "${AGENT_BRANCH}"
+          fi
 
       - name: Enable bounded auto-merge
         if: steps.pr.outputs.number != ''
@@ -146,15 +177,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Persist final checkpoint
-        run: |
-          git add harness/state.json
-          if ! git diff --cached --quiet; then
-            git commit -m "harness: persist autonomous iteration [skip ci]"
-            git push origin "${AGENT_BRANCH}"
-          fi
-
       - name: Publish checkpoint
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: assistant-controller-state
