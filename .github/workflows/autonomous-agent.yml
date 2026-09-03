@@ -44,6 +44,7 @@ jobs:
           test -f harness/controller.py
           grep -q 'Default maximum autonomous repair iterations per task: 3' AGENT_POLICY.md
           grep -q 'The agent may not modify this policy' AGENT_POLICY.md
+          python harness/aios_conformance.py
 
       - name: Prepare durable agent branch
         run: |
@@ -127,7 +128,6 @@ jobs:
         id: pr
         continue-on-error: true
         run: |
-          set -o pipefail
           if gh pr view "${AGENT_BRANCH}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             number="$(gh pr view "${AGENT_BRANCH}" --repo "${GITHUB_REPOSITORY}" --json number --jq .number)"
             echo "number=${number}" >> "$GITHUB_OUTPUT"
