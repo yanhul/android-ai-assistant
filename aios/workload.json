@@ -1,0 +1,12 @@
+{
+  "protocol_version": 1,
+  "capability": "android.assistant@1",
+  "owner": "yanhul/android-ai-assistant",
+  "aios_authority": "yanhul/AIOS",
+  "role": "capability_workload",
+  "terminal_states": ["PASS", "BLOCKED", "INCONCLUSIVE"],
+  "verification_classes": ["android_ci", "adversarial_conformance", "authority_boundary"],
+  "durable_loop": ["OBSERVE", "DECIDE", "ACT", "VERIFY", "PERSIST", "RESUME"],
+  "agent_may_modify_policy": false,
+  "agent_may_modify_terminal_conditions": false
+}
