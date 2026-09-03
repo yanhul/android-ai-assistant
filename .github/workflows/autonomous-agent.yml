@@ -36,6 +36,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Validate immutable control plane
         run: |
           test -f ROADMAP.md
@@ -75,8 +80,6 @@ jobs:
 
       - name: Persist pre-action checkpoint
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add harness/state.json
           if ! git diff --cached --quiet; then
             git commit -m "harness: checkpoint autonomous ACT [skip ci]"
@@ -157,10 +160,11 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           p=Path('harness/state.json')
           s=json.loads(p.read_text())
-          s['pr_status']=__import__('os').environ.get('PR_STATUS','UNSET')
+          s['pr_status']=os.environ.get('PR_STATUS','UNSET')
           if s['pr_status'].startswith('BLOCKED:'):
               s['phase']='HOLD'
               s['result']='HOLD: PR_PERMISSION'
