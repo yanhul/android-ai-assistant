@@ -47,7 +47,8 @@ def terminal_attestation_valid(state: dict, roadmap_hash: str) -> bool:
     if not secret or not isinstance(supplied, str):
         return False
     reason = str(state.get("terminal_reason", ""))
-    message = f"{roadmap_hash}\n{state.get('phase', '')}\n{reason}"
+    phase = str(state.get("phase", ""))
+    message = f"{roadmap_hash}\n{phase}\n{reason}"
     expected = hmac.new(secret.encode(), message.encode(), hashlib.sha256).hexdigest()
     return hmac.compare_digest(supplied, expected)
 
@@ -60,17 +61,24 @@ def main() -> int:
     state.setdefault("terminal", False)
 
     roadmap_hash = sha256(ROADMAP)
-    checkpoint(state, phase="OBSERVE", roadmap_sha256=roadmap_hash)
 
-    if state.get("terminal") or state.get("phase") in TERMINAL_STATES:
+    # Validate the persisted terminal claim BEFORE any checkpoint can overwrite it.
+    # Otherwise a forged phase such as DONE could be normalized to OBSERVE and
+    # accidentally bypass the terminal boundary.
+    persisted_terminal = bool(state.get("terminal"))
+    persisted_phase = state.get("phase")
+    if persisted_terminal or persisted_phase in TERMINAL_STATES:
         if not terminal_attestation_valid(state, roadmap_hash):
             checkpoint(state, phase="HOLD", terminal=False,
                        result="HOLD: UNAUTHORIZED_TERMINAL_STATE",
+                       terminal_reason="unauthorized terminal claim rejected",
                        last_error="persisted terminal state lacks valid external authority")
             print("HOLD: UNAUTHORIZED_TERMINAL_STATE")
             return 3
         print(f"TERMINAL_AUTHORITY_VERIFIED:{state.get('terminal_reason', 'unspecified')}")
         return 0
+
+    checkpoint(state, phase="OBSERVE", roadmap_sha256=roadmap_hash)
 
     task = state.get("task_id") or first_unblocked_todo()
     if not task:
