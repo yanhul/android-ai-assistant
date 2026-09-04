@@ -62,6 +62,28 @@ def main() -> int:
 
     roadmap_hash = sha256(ROADMAP)
 
+    # A durable agent branch can legitimately outlive main. If main advanced the
+    # governing roadmap, stale non-terminal work/budget from the old roadmap must
+    # not strand the controller. Terminal claims are never reset this way.
+    stored_roadmap_hash = state.get("roadmap_sha256")
+    if (
+        stored_roadmap_hash
+        and stored_roadmap_hash != roadmap_hash
+        and not bool(state.get("terminal"))
+        and state.get("phase") not in TERMINAL_STATES
+    ):
+        checkpoint(
+            state,
+            phase="OBSERVE",
+            task_id=None,
+            current_task=None,
+            iteration=0,
+            retry_count=0,
+            result="RESUMED_AFTER_ROADMAP_CHANGE",
+            last_error=None,
+            roadmap_sha256=roadmap_hash,
+        )
+
     # Validate the persisted terminal claim BEFORE any checkpoint can overwrite it.
     # Otherwise a forged phase such as DONE could be normalized to OBSERVE and
     # accidentally bypass the terminal boundary.
