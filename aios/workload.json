@@ -4,6 +4,8 @@
   "owner": "yanhul/android-ai-assistant",
   "aios_authority": "yanhul/AIOS",
   "role": "capability_workload",
+  "adapter": "aios/adapter.sh",
+  "entrypoint": "bash aios/adapter.sh",
   "terminal_states": ["PASS", "BLOCKED", "INCONCLUSIVE"],
   "verification_classes": ["android_ci", "adversarial_conformance", "authority_boundary"],
   "durable_loop": ["OBSERVE", "DECIDE", "ACT", "VERIFY", "PERSIST", "RESUME"],
