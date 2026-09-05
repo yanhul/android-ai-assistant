@@ -2,7 +2,6 @@ name: Notify Try on CI Failure
 
 on:
   workflow_run:
-    workflows: ["AIOS Central Workload Conformance", "AIOS Conformance", "Android CI", "Autonomous Agent", "CI Feedback"]
     types: [completed]
 
 permissions:
