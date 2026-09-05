@@ -1,0 +1,21 @@
+name: AIOS Workload Conformance
+
+on:
+  push:
+    paths:
+      - 'aios/**'
+      - 'app/**'
+      - '.github/workflows/aios-conformance.yml'
+  pull_request:
+    paths:
+      - 'aios/**'
+      - 'app/**'
+      - '.github/workflows/aios-conformance.yml'
+
+jobs:
+  workload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run bounded AIOS Android workload adapter
+        run: bash aios/adapter.sh
