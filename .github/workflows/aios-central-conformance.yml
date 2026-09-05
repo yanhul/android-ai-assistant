@@ -42,4 +42,4 @@ jobs:
             --cwd . \
             --problem "Run the bounded Android assistant workload and report governed evidence." \
             --timeout-seconds 600 \
-            -- ./aios/adapter.sh
+            -- bash ./aios/adapter.sh
