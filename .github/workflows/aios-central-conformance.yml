@@ -1,0 +1,45 @@
+name: AIOS Central Workload Conformance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'aios/**'
+      - '.github/workflows/aios-central-conformance.yml'
+  pull_request:
+    paths:
+      - 'aios/**'
+      - '.github/workflows/aios-central-conformance.yml'
+
+permissions:
+  contents: read
+
+env:
+  AIOS_REF: fa7cc7fac4a650456f0f275198e4fcf8121b1788
+
+jobs:
+  central-workload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workload
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned AIOS core
+        uses: actions/checkout@v4
+        with:
+          repository: yanhul/AIOS
+          ref: ${{ env.AIOS_REF }}
+          path: .aios-core
+          fetch-depth: 1
+
+      - name: Run workload through central AIOS runner
+        env:
+          PYTHONPATH: .aios-core
+        run: |
+          python .aios-core/scripts/run_workload_adapter.py \
+            --workload-id android-ai-assistant \
+            --execution-id "android-${GITHUB_SHA}" \
+            --cwd . \
+            --problem "Run the bounded Android assistant workload and report governed evidence." \
+            --timeout-seconds 600 \
+            -- ./aios/adapter.sh
