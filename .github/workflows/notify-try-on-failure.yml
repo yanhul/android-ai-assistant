@@ -2,6 +2,7 @@ name: Notify Try on CI Failure
 
 on:
   workflow_run:
+    workflows: ["Android CI"]
     types: [completed]
 
 permissions:
