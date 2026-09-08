@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ ! -x ./gradlew ]]; then
-  printf '%s\n' '{"status":"BLOCKED","reason":"Gradle wrapper missing","artifact_refs":[],"evidence_refs":[],"verification_refs":[],"provenance":{"producer":"yanhul/android-ai-assistant","adapter":"android.assistant@1"}}'
+  printf '%s\n' '{"status":"BLOCKED","reason":"Gradle wrapper missing","artifact_refs":[],"evidence_refs":["gradle-wrapper-missing"],"verification_refs":["android_ci","authority_boundary"],"provenance":{"producer":"yanhul/android-ai-assistant","adapter":"android.assistant@1"}}'
   exit 0
 fi
 
