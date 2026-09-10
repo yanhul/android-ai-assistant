@@ -1,16 +1,19 @@
 package com.yanhul.assistant.assistant
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ToolRegistryTest {
-    private data class EchoInput(val text: String) : ToolInput
-    private data class EchoOutput(val text: String) : ToolOutput
+    private data class Input(val value: String) : ToolInput
+    private data class Output(val value: String) : ToolOutput
 
-    private class EchoTool : TypedTool<EchoInput, EchoOutput> {
-        override val definition = ToolDefinition("echo", "Echo text")
-        override fun execute(input: EchoInput): EchoOutput = EchoOutput(input.text)
+    private class EchoTool(
+        id: String = "echo",
+    ) : TypedTool<Input, Output> {
+        override val definition = ToolDefinition(id, "Echoes typed input")
+        override fun execute(input: Input): Output = Output(input.value)
     }
 
     @Test
@@ -20,22 +23,54 @@ class ToolRegistryTest {
 
         assertTrue(registry.contains("echo"))
         assertEquals(listOf("echo"), registry.ids())
-        assertEquals(EchoOutput("hello"), registry.execute("echo", EchoInput("hello")))
+        assertEquals(Output("hello"), registry.execute("echo", Input("hello")))
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun rejects_duplicate_tool_ids() {
+    @Test
+    fun preserves_registration_order_and_rejects_duplicate_ids() {
         val registry = ToolRegistry()
-        registry.register(EchoTool())
-        registry.register(EchoTool())
+        registry.register(EchoTool("first"))
+        registry.register(EchoTool("second"))
+
+        assertEquals(listOf("first", "second"), registry.ids())
+        expectIllegalArgument { registry.register(EchoTool("first")) }
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun rejects_blank_tool_ids() {
+    @Test
+    fun rejects_blank_definition_fields() {
         val registry = ToolRegistry()
-        registry.register(object : TypedTool<EchoInput, EchoOutput> {
-            override val definition = ToolDefinition("  ", "invalid")
-            override fun execute(input: EchoInput) = EchoOutput(input.text)
-        })
+        expectIllegalArgument { registry.register(EchoTool("   ")) }
+        expectIllegalArgument {
+            registry.register(object : TypedTool<Input, Output> {
+                override val definition = ToolDefinition("invalid", "  ")
+                override fun execute(input: Input): Output = Output(input.value)
+            })
+        }
+        assertFalse(registry.contains("invalid"))
+    }
+
+    @Test
+    fun unknown_tool_fails_closed() {
+        val registry = ToolRegistry()
+
+        expectIllegalState { registry.execute("missing", Input("hello")) }
+    }
+
+    private fun expectIllegalArgument(block: () -> Unit) {
+        try {
+            block()
+            throw AssertionError("Expected IllegalArgumentException")
+        } catch (_: IllegalArgumentException) {
+            // expected
+        }
+    }
+
+    private fun expectIllegalState(block: () -> Unit) {
+        try {
+            block()
+            throw AssertionError("Expected IllegalStateException")
+        } catch (_: IllegalStateException) {
+            // expected
+        }
     }
 }

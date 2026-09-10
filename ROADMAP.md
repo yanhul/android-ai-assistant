@@ -19,8 +19,8 @@ Status is evidence-driven. A task is DONE only when its stated acceptance criter
 | T003 | STT/TTS voice loop | DONE | Code present; runtime device test still required |
 | T004 | Explicit Android action boundary | DONE | AndroidActions + router committed; CI passed |
 | T005 | AI provider abstraction | DONE | Provider abstraction + JVM provider-selection tests + Android CI success; no repository secrets |
-| T006 | Tool registry and typed tool contracts | TODO | Unit tests + CI pass |
-| T007 | Confirmation/safety policy | TODO | Policy tests cover destructive/ambiguous actions |
+| T006 | Tool registry and typed tool contracts | DONE | ToolRegistry unit coverage; Android CI and AIOS conformance passed on PR #5 head |
+| T007 | Confirmation/safety policy | DONE | SafetyPolicy + destructive/ambiguous/missing-action unit coverage; Android CI and AIOS conformance passed on PR #5 head |
 | T008 | Persistent local state | TODO | Instrumented/unit tests + CI pass |
 | T009 | End-to-end assistant orchestration | TODO | Integration tests + CI pass |
 | T010 | Release build pipeline | TODO | Signed/reproducible release process documented; secrets external |
