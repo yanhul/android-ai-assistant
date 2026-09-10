@@ -20,7 +20,6 @@ permissions:
   contents: write
   pull-requests: write
   actions: read
-  id-token: write
 
 concurrency:
   group: android-assistant-autonomous
@@ -78,7 +77,6 @@ jobs:
           else
             echo "No ACT state; controller result:"
             cat controller.out
-          fi
 
       - name: Persist pre-action checkpoint
         run: |
