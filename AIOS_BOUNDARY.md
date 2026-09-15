@@ -18,11 +18,12 @@ This repository is an execution substrate. Its autonomous coding agent is not th
 | Observe → Decide → Act → Verify → Persist → Resume | IMPLEMENTED |
 | Immutable agent policy/control plane | IMPLEMENTED |
 | Typed tool contracts/registry | IMPLEMENTED |
-| Explicit generalized permit/capability object | TODO |
-| General contract verifier reusable by other substrates | TODO |
-| External-effect receipt/reconciliation layer | PARTIAL — PR boundary is now fail-closed and checkpointed |
+| Explicit generalized permit/capability object | AIOS-CENTRAL |
+| General contract/authority verifier | AIOS-CENTRAL |
+| External-effect receipt/reconciliation layer | AIOS-CENTRAL — PR boundary remains fail-closed and checkpointed |
+| Central workload execution | AIOS-CENTRAL — pinned to `e2dc2c32bedf7de598b66e1bfe89f300fb83ccfc` |
 
-The TODO items should be supplied by AIOS rather than duplicated locally.
+The Android workload does not vendor a second AIOS control plane. Its `aios/` adapter is executed by the central AIOS runner against the pinned AIOS core.
 
 ## Rule
 
