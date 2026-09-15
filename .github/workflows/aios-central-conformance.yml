@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 env:
-  AIOS_REF: 5fba88c58d89feed5363b95d3d03b31150d1fee7
+  AIOS_REF: e2dc2c32bedf7de598b66e1bfe89f300fb83ccfc
 
 jobs:
   central-workload:
