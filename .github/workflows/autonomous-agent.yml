@@ -17,10 +17,8 @@ on:
     - cron: '*/15 * * * *'
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   actions: read
-  id-token: write
 
 concurrency:
   group: android-assistant-autonomous
@@ -32,6 +30,10 @@ env:
 jobs:
   control-loop:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -178,13 +180,6 @@ jobs:
             git commit -m "harness: persist autonomous PR boundary [skip ci]"
             git push origin "${AGENT_BRANCH}"
           fi
-
-      - name: Enable bounded auto-merge
-        if: steps.pr.outputs.number != ''
-        run: |
-          gh pr merge "${{ steps.pr.outputs.number }}" --repo "${GITHUB_REPOSITORY}" --squash --auto
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish checkpoint
         if: always()
